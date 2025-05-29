@@ -774,3 +774,45 @@ Fiber is an open-source project that runs on donations to pay the bills, e.g., o
 ## 🧾 License
 
 Copyright (c) 2019-present [Fenny](https://github.com/fenny) and [Contributors](https://github.com/gofiber/fiber/graphs/contributors). `Fiber` is free and open-source software licensed under the [MIT License](https://github.com/gofiber/fiber/blob/master/LICENSE). Official logo was created by [Vic Shóstak](https://github.com/koddr) and distributed under [Creative Commons](https://creativecommons.org/licenses/by-sa/4.0/) license (CC BY-SA 4.0 International).
+
+## Running Tests with Docker
+
+This project includes a `Dockerfile` to run the Go tests in a containerized environment.
+This is based on the `unit` tests defined in the `.github/workflows/test.yml` workflow.
+
+### Prerequisites
+
+- Docker installed on your system.
+
+### Building the Docker Image
+
+To build the Docker image, navigate to the root directory of the project (where the `Dockerfile` is located) and run:
+
+```sh
+docker build -t fiber-tests .
+```
+
+### Running the Tests
+
+After building the image, you can run the tests using the following command:
+
+```sh
+docker run --rm fiber-tests
+```
+
+This will execute the tests as defined in the `CMD` instruction of the Dockerfile.
+The test output, including coverage information (`coverage.txt`), will be generated inside the container. If you need to access the coverage file, you can use `docker cp`. For example:
+
+```sh
+# First, get the container ID (works if you run the container in detached mode or get it from another terminal)
+docker ps -lq
+
+# Then copy the file (replace CONTAINER_ID with the actual ID)
+docker cp CONTAINER_ID:/app/coverage.txt .
+```
+
+Alternatively, to get the coverage file more easily, you can mount a volume when running the container:
+```sh
+docker run --rm -v $(pwd)/coverage_reports:/app/coverage_reports fiber-tests gotestsum -f testname -- ./... -race -count=1 -coverprofile=/app/coverage_reports/coverage.txt -covermode=atomic -shuffle=on
+```
+This command mounts a `coverage_reports` directory from your current host directory into `/app/coverage_reports` in the container and tells `gotestsum` to write the coverage profile there.
