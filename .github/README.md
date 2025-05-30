@@ -774,3 +774,70 @@ Fiber is an open-source project that runs on donations to pay the bills, e.g., o
 ## 🧾 License
 
 Copyright (c) 2019-present [Fenny](https://github.com/fenny) and [Contributors](https://github.com/gofiber/fiber/graphs/contributors). `Fiber` is free and open-source software licensed under the [MIT License](https://github.com/gofiber/fiber/blob/master/LICENSE). Official logo was created by [Vic Shóstak](https://github.com/koddr) and distributed under [Creative Commons](https://creativecommons.org/licenses/by-sa/4.0/) license (CC BY-SA 4.0 International).
+
+## Running Tests with Docker
+
+This project includes a `Dockerfile` to run the Go tests in a containerized environment.
+This is based on the `unit` tests defined in the `.github/workflows/test.yml` workflow.
+
+### Prerequisites
+
+- Docker installed on your system.
+
+### Enabling IPv6 for Docker (Important for some tests)
+
+Certain tests within this project require IPv6 networking. If these tests fail with errors like "cannot assign requested address" or "network is unreachable", you likely need to enable IPv6 for your Docker daemon and containers.
+
+1.  **Configure Docker Daemon for IPv6:**
+    Edit your Docker daemon configuration file (usually `/etc/docker/daemon.json`). If the file doesn't exist, create it. Add the following content:
+    ```json
+    {
+      "ipv6": true,
+      "fixed-cidr-v6": "2001:db8:1::/64"
+    }
+    ```
+    The `fixed-cidr-v6` is an example; you can choose a suitable IPv6 prefix. Restart the Docker daemon after saving the file (e.g., `sudo systemctl restart docker`).
+
+2.  **Ensure Host System has IPv6 Enabled:**
+    Your host system's kernel must also have IPv6 enabled and forwarding configured if necessary.
+
+The Dockerfile included in this project attempts to enable IPv6 within the container. However, the Docker host and daemon configuration are paramount.
+
+### Building the Docker Image
+
+To build the Docker image, navigate to the root directory of the project (where the `Dockerfile` is located) and run:
+
+```sh
+docker build -t fiber-tests .
+```
+
+### Running the Tests
+
+After building the image, you can run the tests using the following command:
+
+```sh
+docker run --rm fiber-tests
+```
+
+If you still encounter IPv6 issues, you might try running the container with explicit sysctl flags (though the Dockerfile now attempts to set these, host configuration takes precedence):
+
+```sh
+docker run --rm --sysctl net.ipv6.conf.all.disable_ipv6=0 --sysctl net.ipv6.conf.default.disable_ipv6=0 --sysctl net.ipv6.conf.lo.disable_ipv6=0 fiber-tests
+```
+
+This will execute the tests as defined in the `CMD` instruction of the Dockerfile.
+The test output, including coverage information (`coverage.txt`), will be generated inside the container. If you need to access the coverage file, you can use `docker cp`. For example:
+
+```sh
+# First, get the container ID (works if you run the container in detached mode or get it from another terminal)
+docker ps -lq
+
+# Then copy the file (replace CONTAINER_ID with the actual ID)
+docker cp CONTAINER_ID:/app/coverage.txt .
+```
+
+Alternatively, to get the coverage file more easily, you can mount a volume when running the container:
+```sh
+docker run --rm -v $(pwd)/coverage_reports:/app/coverage_reports fiber-tests gotestsum -f testname -- ./... -race -count=1 -coverprofile=/app/coverage_reports/coverage.txt -covermode=atomic -shuffle=on
+```
+This command mounts a `coverage_reports` directory from your current host directory into `/app/coverage_reports` in the container and tells `gotestsum` to write the coverage profile there.
