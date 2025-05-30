@@ -784,6 +784,25 @@ This is based on the `unit` tests defined in the `.github/workflows/test.yml` wo
 
 - Docker installed on your system.
 
+### Enabling IPv6 for Docker (Important for some tests)
+
+Certain tests within this project require IPv6 networking. If these tests fail with errors like "cannot assign requested address" or "network is unreachable", you likely need to enable IPv6 for your Docker daemon and containers.
+
+1.  **Configure Docker Daemon for IPv6:**
+    Edit your Docker daemon configuration file (usually `/etc/docker/daemon.json`). If the file doesn't exist, create it. Add the following content:
+    ```json
+    {
+      "ipv6": true,
+      "fixed-cidr-v6": "2001:db8:1::/64"
+    }
+    ```
+    The `fixed-cidr-v6` is an example; you can choose a suitable IPv6 prefix. Restart the Docker daemon after saving the file (e.g., `sudo systemctl restart docker`).
+
+2.  **Ensure Host System has IPv6 Enabled:**
+    Your host system's kernel must also have IPv6 enabled and forwarding configured if necessary.
+
+The Dockerfile included in this project attempts to enable IPv6 within the container. However, the Docker host and daemon configuration are paramount.
+
 ### Building the Docker Image
 
 To build the Docker image, navigate to the root directory of the project (where the `Dockerfile` is located) and run:
@@ -798,6 +817,12 @@ After building the image, you can run the tests using the following command:
 
 ```sh
 docker run --rm fiber-tests
+```
+
+If you still encounter IPv6 issues, you might try running the container with explicit sysctl flags (though the Dockerfile now attempts to set these, host configuration takes precedence):
+
+```sh
+docker run --rm --sysctl net.ipv6.conf.all.disable_ipv6=0 --sysctl net.ipv6.conf.default.disable_ipv6=0 --sysctl net.ipv6.conf.lo.disable_ipv6=0 fiber-tests
 ```
 
 This will execute the tests as defined in the `CMD` instruction of the Dockerfile.
